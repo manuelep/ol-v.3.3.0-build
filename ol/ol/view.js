@@ -1,7 +1,7 @@
 goog.provide('ol.View');
 goog.provide('ol.ViewHint');
+goog.provide('ol.ViewProperty');
 
-goog.require('goog.array');
 goog.require('goog.asserts');
 goog.require('ol');
 goog.require('ol.CenterConstraint');
@@ -13,6 +13,8 @@ goog.require('ol.RotationConstraintType');
 goog.require('ol.Size');
 goog.require('ol.coordinate');
 goog.require('ol.extent');
+goog.require('ol.geom.Polygon');
+goog.require('ol.geom.SimpleGeometry');
 goog.require('ol.proj');
 goog.require('ol.proj.METERS_PER_UNIT');
 goog.require('ol.proj.Projection');
@@ -243,6 +245,7 @@ ol.View.prototype.constrainRotation = function(rotation, opt_delta) {
 
 
 /**
+ * Get the view center.
  * @return {ol.Coordinate|undefined} The center of the view.
  * @observable
  * @api stable
@@ -251,10 +254,6 @@ ol.View.prototype.getCenter = function() {
   return /** @type {ol.Coordinate|undefined} */ (
       this.get(ol.ViewProperty.CENTER));
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'getCenter',
-    ol.View.prototype.getCenter);
 
 
 /**
@@ -266,27 +265,31 @@ ol.View.prototype.getHints = function() {
 
 
 /**
- * Calculate the extent for the current view state and the passed `size`.
- * `size` is the size in pixels of the box into which the calculated extent
+ * Calculate the extent for the current view state and the passed size.
+ * The size is the pixel dimensions of the box into which the calculated extent
  * should fit. In most cases you want to get the extent of the entire map,
  * that is `map.getSize()`.
  * @param {ol.Size} size Box pixel size.
  * @return {ol.Extent} Extent.
- * @api
+ * @api stable
  */
 ol.View.prototype.calculateExtent = function(size) {
-  goog.asserts.assert(this.isDef());
   var center = this.getCenter();
+  goog.asserts.assert(goog.isDefAndNotNull(center),
+      'The view center is not defined');
   var resolution = this.getResolution();
-  var minX = center[0] - resolution * size[0] / 2;
-  var maxX = center[0] + resolution * size[0] / 2;
-  var minY = center[1] - resolution * size[1] / 2;
-  var maxY = center[1] + resolution * size[1] / 2;
-  return [minX, minY, maxX, maxY];
+  goog.asserts.assert(goog.isDef(resolution),
+      'The view resolution is not defined');
+  var rotation = this.getRotation();
+  goog.asserts.assert(goog.isDef(rotation),
+      'The view rotation is not defined');
+
+  return ol.extent.getForViewAndSize(center, resolution, rotation, size);
 };
 
 
 /**
+ * Get the view projection.
  * @return {ol.proj.Projection} The projection of the view.
  * @api stable
  */
@@ -296,6 +299,7 @@ ol.View.prototype.getProjection = function() {
 
 
 /**
+ * Get the view resolution.
  * @return {number|undefined} The resolution of the view.
  * @observable
  * @api stable
@@ -304,10 +308,6 @@ ol.View.prototype.getResolution = function() {
   return /** @type {number|undefined} */ (
       this.get(ol.ViewProperty.RESOLUTION));
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'getResolution',
-    ol.View.prototype.getResolution);
 
 
 /**
@@ -316,7 +316,6 @@ goog.exportProperty(
  * @param {ol.Size} size Box pixel size.
  * @return {number} The resolution at which the provided extent will render at
  *     the given size.
- * @api
  */
 ol.View.prototype.getResolutionForExtent = function(extent, size) {
   var xResolution = ol.extent.getWidth(extent) / size[0];
@@ -344,24 +343,23 @@ ol.View.prototype.getResolutionForValueFunction = function(opt_power) {
       function(value) {
         var resolution = maxResolution / Math.pow(power, value * max);
         goog.asserts.assert(resolution >= minResolution &&
-            resolution <= maxResolution);
+            resolution <= maxResolution,
+            'calculated resolution outside allowed bounds (%s <= %s <= %s)',
+            minResolution, resolution, maxResolution);
         return resolution;
       });
 };
 
 
 /**
- * @return {number} The rotation of the view.
+ * Get the view rotation.
+ * @return {number} The rotation of the view in radians.
  * @observable
  * @api stable
  */
 ol.View.prototype.getRotation = function() {
   return /** @type {number} */ (this.get(ol.ViewProperty.ROTATION));
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'getRotation',
-    ol.View.prototype.getRotation);
 
 
 /**
@@ -383,7 +381,8 @@ ol.View.prototype.getValueForResolutionFunction = function(opt_power) {
       function(resolution) {
         var value =
             (Math.log(maxResolution / resolution) / Math.log(power)) / max;
-        goog.asserts.assert(value >= 0 && value <= 1);
+        goog.asserts.assert(value >= 0 && value <= 1,
+            'calculated value (%s) ouside allowed range (0-1)', value);
         return value;
       });
 };
@@ -393,13 +392,18 @@ ol.View.prototype.getValueForResolutionFunction = function(opt_power) {
  * @return {olx.ViewState} View state.
  */
 ol.View.prototype.getState = function() {
-  goog.asserts.assert(this.isDef());
+  goog.asserts.assert(this.isDef(),
+      'the view was not defined (had no center and/or resolution)');
   var center = /** @type {ol.Coordinate} */ (this.getCenter());
   var projection = this.getProjection();
   var resolution = /** @type {number} */ (this.getResolution());
   var rotation = this.getRotation();
   return /** @type {olx.ViewState} */ ({
-    center: center.slice(),
+    // Snap center to closest pixel
+    center: [
+      Math.round(center[0] / resolution) * resolution,
+      Math.round(center[1] / resolution) * resolution
+    ],
     projection: goog.isDef(projection) ? projection : null,
     resolution: resolution,
     rotation: rotation
@@ -434,36 +438,24 @@ ol.View.prototype.getZoom = function() {
 
 
 /**
- * Fit the map view to the passed `extent` and `size`. `size` is the size in
- * pixels of the box to fit the extent into. In most cases you will want to
- * use the map size, that is `map.getSize()`.
- * @param {ol.Extent} extent Extent.
+ * Fit the given geometry or extent based on the given map size and border.
+ * The size is pixel dimensions of the box to fit the extent into.
+ * In most cases you will want to use the map size, that is `map.getSize()`.
+ * Takes care of the map angle.
+ * @param {ol.geom.SimpleGeometry|ol.Extent} geometry Geometry.
  * @param {ol.Size} size Box pixel size.
+ * @param {olx.view.FitOptions=} opt_options Options.
  * @api
  */
-ol.View.prototype.fitExtent = function(extent, size) {
-  if (!ol.extent.isEmpty(extent)) {
-    this.setCenter(ol.extent.getCenter(extent));
-    var resolution = this.getResolutionForExtent(extent, size);
-    var constrainedResolution = this.constrainResolution(resolution, 0, 0);
-    if (constrainedResolution < resolution) {
-      constrainedResolution =
-          this.constrainResolution(constrainedResolution, -1, 0);
-    }
-    this.setResolution(constrainedResolution);
+ol.View.prototype.fit = function(geometry, size, opt_options) {
+  if (!(geometry instanceof ol.geom.SimpleGeometry)) {
+    goog.asserts.assert(goog.isArray(geometry),
+        'invalid extent or geometry');
+    goog.asserts.assert(!ol.extent.isEmpty(geometry),
+        'cannot fit empty extent');
+    geometry = ol.geom.Polygon.fromExtent(geometry);
   }
-};
 
-
-/**
- * Fit the given geometry based on the given map size and border.
- * Take care on the map angle.
- * @param {ol.geom.SimpleGeometry} geometry Geometry.
- * @param {ol.Size} size Box pixel size.
- * @param {olx.view.FitGeometryOptions=} opt_options Options.
- * @api
- */
-ol.View.prototype.fitGeometry = function(geometry, size, opt_options) {
   var options = goog.isDef(opt_options) ? opt_options : {};
 
   var padding = goog.isDef(options.padding) ? options.padding : [0, 0, 0, 0];
@@ -483,7 +475,7 @@ ol.View.prototype.fitGeometry = function(geometry, size, opt_options) {
 
   // calculate rotated extent
   var rotation = this.getRotation();
-  goog.asserts.assert(goog.isDef(rotation));
+  goog.asserts.assert(goog.isDef(rotation), 'rotation was not defined');
   var cosAngle = Math.cos(-rotation);
   var sinAngle = Math.sin(-rotation);
   var minRotX = +Infinity;
@@ -531,7 +523,6 @@ ol.View.prototype.fitGeometry = function(geometry, size, opt_options) {
 
 /**
  * Center on coordinate and view position.
- * Take care on the map angle.
  * @param {ol.Coordinate} coordinate Coordinate.
  * @param {ol.Size} size Box pixel size.
  * @param {ol.Pixel} position Position on the view to center on.
@@ -590,10 +581,6 @@ ol.View.prototype.rotate = function(rotation, opt_anchor) {
 ol.View.prototype.setCenter = function(center) {
   this.set(ol.ViewProperty.CENTER, center);
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'setCenter',
-    ol.View.prototype.setCenter);
 
 
 /**
@@ -602,9 +589,11 @@ goog.exportProperty(
  * @return {number} New value.
  */
 ol.View.prototype.setHint = function(hint, delta) {
-  goog.asserts.assert(0 <= hint && hint < this.hints_.length);
+  goog.asserts.assert(0 <= hint && hint < this.hints_.length,
+      'illegal hint (%s), must be between 0 and %s', hint, this.hints_.length);
   this.hints_[hint] += delta;
-  goog.asserts.assert(this.hints_[hint] >= 0);
+  goog.asserts.assert(this.hints_[hint] >= 0,
+      'Hint at %s must be positive, was %s', hint, this.hints_[hint]);
   return this.hints_[hint];
 };
 
@@ -618,25 +607,17 @@ ol.View.prototype.setHint = function(hint, delta) {
 ol.View.prototype.setResolution = function(resolution) {
   this.set(ol.ViewProperty.RESOLUTION, resolution);
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'setResolution',
-    ol.View.prototype.setResolution);
 
 
 /**
  * Set the rotation for this view.
- * @param {number} rotation The rotation of the view.
+ * @param {number} rotation The rotation of the view in radians.
  * @observable
  * @api stable
  */
 ol.View.prototype.setRotation = function(rotation) {
   this.set(ol.ViewProperty.ROTATION, rotation);
 };
-goog.exportProperty(
-    ol.View.prototype,
-    'setRotation',
-    ol.View.prototype.setRotation);
 
 
 /**
@@ -764,7 +745,8 @@ ol.View.createRotationConstraint_ = function(options) {
     } else if (goog.isNumber(constrainRotation)) {
       return ol.RotationConstraint.createSnapToN(constrainRotation);
     } else {
-      goog.asserts.fail();
+      goog.asserts.fail(
+          'illegal option for constrainRotation (%s)', constrainRotation);
       return ol.RotationConstraint.none;
     }
   } else {

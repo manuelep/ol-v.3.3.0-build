@@ -116,7 +116,6 @@ goog.inherits(ol.style.Circle, ol.style.Image);
 
 /**
  * @inheritDoc
- * @api
  */
 ol.style.Circle.prototype.getAnchor = function() {
   return this.anchor_;
@@ -124,6 +123,7 @@ ol.style.Circle.prototype.getAnchor = function() {
 
 
 /**
+ * Get the fill style for the circle.
  * @return {ol.style.Fill} Fill style.
  * @api
  */
@@ -141,6 +141,7 @@ ol.style.Circle.prototype.getHitDetectionImage = function(pixelRatio) {
 
 
 /**
+ * Get the image used to render the circle.
  * @param {number} pixelRatio Pixel ratio.
  * @return {HTMLCanvasElement} Canvas element.
  * @api
@@ -176,7 +177,6 @@ ol.style.Circle.prototype.getHitDetectionImageSize = function() {
 
 /**
  * @inheritDoc
- * @api
  */
 ol.style.Circle.prototype.getOrigin = function() {
   return this.origin_;
@@ -184,6 +184,7 @@ ol.style.Circle.prototype.getOrigin = function() {
 
 
 /**
+ * Get the circle radius.
  * @return {number} Radius.
  * @api
  */
@@ -194,7 +195,6 @@ ol.style.Circle.prototype.getRadius = function() {
 
 /**
  * @inheritDoc
- * @api
  */
 ol.style.Circle.prototype.getSize = function() {
   return this.size_;
@@ -202,6 +202,7 @@ ol.style.Circle.prototype.getSize = function() {
 
 
 /**
+ * Get the stroke style for the circle.
  * @return {ol.style.Stroke} Stroke style.
  * @api
  */

@@ -1,6 +1,5 @@
 goog.provide('ol.renderer.Layer');
 
-goog.require('goog.Disposable');
 goog.require('goog.asserts');
 goog.require('goog.events');
 goog.require('goog.events.EventType');
@@ -22,7 +21,6 @@ goog.require('ol.vec.Mat4');
  * @constructor
  * @extends {ol.Observable}
  * @param {ol.layer.Layer} layer Layer.
- * @suppress {checkStructDictInheritance}
  * @struct
  */
 ol.renderer.Layer = function(layer) {
@@ -114,7 +112,6 @@ ol.renderer.Layer.prototype.createLoadedTileFinder = function(source, tiles) {
 
 
 /**
- * @protected
  * @return {ol.layer.Layer} Layer.
  */
 ol.renderer.Layer.prototype.getLayer = function() {
@@ -150,14 +147,16 @@ ol.renderer.Layer.prototype.loadImage = function(image) {
     // the image is either "idle" or "loading", register the change
     // listener (a noop if the listener was already registered)
     goog.asserts.assert(imageState == ol.ImageState.IDLE ||
-        imageState == ol.ImageState.LOADING);
-    goog.events.listenOnce(image, goog.events.EventType.CHANGE,
+        imageState == ol.ImageState.LOADING,
+        'imageState is "idle" or "loading"');
+    goog.events.listen(image, goog.events.EventType.CHANGE,
         this.handleImageChange_, false, this);
   }
   if (imageState == ol.ImageState.IDLE) {
     image.load();
     imageState = image.getState();
-    goog.asserts.assert(imageState == ol.ImageState.LOADING);
+    goog.asserts.assert(imageState == ol.ImageState.LOADING,
+        'imageState is "loading"');
   }
   return imageState == ol.ImageState.LOADED;
 };
@@ -226,8 +225,8 @@ ol.renderer.Layer.prototype.updateLogos = function(frameState, source) {
     if (goog.isString(logo)) {
       frameState.logos[logo] = '';
     } else if (goog.isObject(logo)) {
-      goog.asserts.assertString(logo.href);
-      goog.asserts.assertString(logo.src);
+      goog.asserts.assertString(logo.href, 'logo.href is a string');
+      goog.asserts.assertString(logo.src, 'logo.src is a string');
       frameState.logos[logo.src] = logo.href;
     }
   }

@@ -2,7 +2,6 @@ goog.provide('ol.layer.Base');
 goog.provide('ol.layer.LayerProperty');
 goog.provide('ol.layer.LayerState');
 
-goog.require('goog.events');
 goog.require('goog.math');
 goog.require('goog.object');
 goog.require('ol.Object');
@@ -20,6 +19,7 @@ ol.layer.LayerProperty = {
   SATURATION: 'saturation',
   VISIBLE: 'visible',
   EXTENT: 'extent',
+  Z_INDEX: 'zIndex',
   MAX_RESOLUTION: 'maxResolution',
   MIN_RESOLUTION: 'minResolution',
   SOURCE: 'source'
@@ -35,7 +35,9 @@ ol.layer.LayerProperty = {
  *            saturation: number,
  *            sourceState: ol.source.State,
  *            visible: boolean,
+ *            managed: boolean,
  *            extent: (ol.Extent|undefined),
+ *            zIndex: number,
  *            maxResolution: number,
  *            minResolution: number}}
  */
@@ -76,6 +78,8 @@ ol.layer.Base = function(options) {
       goog.isDef(options.saturation) ? options.saturation : 1;
   properties[ol.layer.LayerProperty.VISIBLE] =
       goog.isDef(options.visible) ? options.visible : true;
+  properties[ol.layer.LayerProperty.Z_INDEX] =
+      goog.isDef(options.zIndex) ? options.zIndex : 0;
   properties[ol.layer.LayerProperty.MAX_RESOLUTION] =
       goog.isDef(options.maxResolution) ? options.maxResolution : Infinity;
   properties[ol.layer.LayerProperty.MIN_RESOLUTION] =
@@ -87,6 +91,7 @@ goog.inherits(ol.layer.Base, ol.Object);
 
 
 /**
+ * Return the brightness of the layer.
  * @return {number} The brightness of the layer.
  * @observable
  * @api
@@ -94,13 +99,10 @@ goog.inherits(ol.layer.Base, ol.Object);
 ol.layer.Base.prototype.getBrightness = function() {
   return /** @type {number} */ (this.get(ol.layer.LayerProperty.BRIGHTNESS));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getBrightness',
-    ol.layer.Base.prototype.getBrightness);
 
 
 /**
+ * Return the contrast of the layer.
  * @return {number} The contrast of the layer.
  * @observable
  * @api
@@ -108,13 +110,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.getContrast = function() {
   return /** @type {number} */ (this.get(ol.layer.LayerProperty.CONTRAST));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getContrast',
-    ol.layer.Base.prototype.getContrast);
 
 
 /**
+ * Return the hue of the layer.
  * @return {number} The hue of the layer.
  * @observable
  * @api
@@ -122,10 +121,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.getHue = function() {
   return /** @type {number} */ (this.get(ol.layer.LayerProperty.HUE));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getHue',
-    ol.layer.Base.prototype.getHue);
 
 
 /**
@@ -140,6 +135,7 @@ ol.layer.Base.prototype.getLayerState = function() {
   var sourceState = this.getSourceState();
   var visible = this.getVisible();
   var extent = this.getExtent();
+  var zIndex = this.getZIndex();
   var maxResolution = this.getMaxResolution();
   var minResolution = this.getMinResolution();
   return {
@@ -151,7 +147,9 @@ ol.layer.Base.prototype.getLayerState = function() {
     saturation: Math.max(saturation, 0),
     sourceState: sourceState,
     visible: visible,
+    managed: true,
     extent: extent,
+    zIndex: zIndex,
     maxResolution: maxResolution,
     minResolution: Math.max(minResolution, 0)
   };
@@ -175,6 +173,8 @@ ol.layer.Base.prototype.getLayerStatesArray = goog.abstractMethod;
 
 
 /**
+ * Return the {@link ol.Extent extent} of the layer or `undefined` if it
+ * will be visible regardless of extent.
  * @return {ol.Extent|undefined} The layer extent.
  * @observable
  * @api stable
@@ -183,13 +183,10 @@ ol.layer.Base.prototype.getExtent = function() {
   return /** @type {ol.Extent|undefined} */ (
       this.get(ol.layer.LayerProperty.EXTENT));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getExtent',
-    ol.layer.Base.prototype.getExtent);
 
 
 /**
+ * Return the maximum resolution of the layer.
  * @return {number} The maximum resolution of the layer.
  * @observable
  * @api stable
@@ -198,13 +195,10 @@ ol.layer.Base.prototype.getMaxResolution = function() {
   return /** @type {number} */ (
       this.get(ol.layer.LayerProperty.MAX_RESOLUTION));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getMaxResolution',
-    ol.layer.Base.prototype.getMaxResolution);
 
 
 /**
+ * Return the minimum resolution of the layer.
  * @return {number} The minimum resolution of the layer.
  * @observable
  * @api stable
@@ -213,13 +207,10 @@ ol.layer.Base.prototype.getMinResolution = function() {
   return /** @type {number} */ (
       this.get(ol.layer.LayerProperty.MIN_RESOLUTION));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getMinResolution',
-    ol.layer.Base.prototype.getMinResolution);
 
 
 /**
+ * Return the opacity of the layer (between 0 and 1).
  * @return {number} The opacity of the layer.
  * @observable
  * @api stable
@@ -227,13 +218,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.getOpacity = function() {
   return /** @type {number} */ (this.get(ol.layer.LayerProperty.OPACITY));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getOpacity',
-    ol.layer.Base.prototype.getOpacity);
 
 
 /**
+ * Return the saturation of the layer.
  * @return {number} The saturation of the layer.
  * @observable
  * @api
@@ -241,10 +229,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.getSaturation = function() {
   return /** @type {number} */ (this.get(ol.layer.LayerProperty.SATURATION));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getSaturation',
-    ol.layer.Base.prototype.getSaturation);
 
 
 /**
@@ -254,6 +238,7 @@ ol.layer.Base.prototype.getSourceState = goog.abstractMethod;
 
 
 /**
+ * Return the visibility of the layer (`true` or `false`).
  * @return {boolean} The visibility of the layer.
  * @observable
  * @api stable
@@ -261,10 +246,18 @@ ol.layer.Base.prototype.getSourceState = goog.abstractMethod;
 ol.layer.Base.prototype.getVisible = function() {
   return /** @type {boolean} */ (this.get(ol.layer.LayerProperty.VISIBLE));
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'getVisible',
-    ol.layer.Base.prototype.getVisible);
+
+
+/**
+ * Return the Z-index of the layer, which is used to order layers before
+ * rendering. The default Z-index is 0.
+ * @return {number} The Z-index of the layer.
+ * @observable
+ * @api
+ */
+ol.layer.Base.prototype.getZIndex = function() {
+  return /** @type {number} */ (this.get(ol.layer.LayerProperty.Z_INDEX));
+};
 
 
 /**
@@ -292,10 +285,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.setBrightness = function(brightness) {
   this.set(ol.layer.LayerProperty.BRIGHTNESS, brightness);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setBrightness',
-    ol.layer.Base.prototype.setBrightness);
 
 
 /**
@@ -310,10 +299,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.setContrast = function(contrast) {
   this.set(ol.layer.LayerProperty.CONTRAST, contrast);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setContrast',
-    ol.layer.Base.prototype.setContrast);
 
 
 /**
@@ -326,10 +311,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.setHue = function(hue) {
   this.set(ol.layer.LayerProperty.HUE, hue);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setHue',
-    ol.layer.Base.prototype.setHue);
 
 
 /**
@@ -342,13 +323,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.setExtent = function(extent) {
   this.set(ol.layer.LayerProperty.EXTENT, extent);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setExtent',
-    ol.layer.Base.prototype.setExtent);
 
 
 /**
+ * Set the maximum resolution at which the layer is visible.
  * @param {number} maxResolution The maximum resolution of the layer.
  * @observable
  * @api stable
@@ -356,13 +334,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.setMaxResolution = function(maxResolution) {
   this.set(ol.layer.LayerProperty.MAX_RESOLUTION, maxResolution);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setMaxResolution',
-    ol.layer.Base.prototype.setMaxResolution);
 
 
 /**
+ * Set the minimum resolution at which the layer is visible.
  * @param {number} minResolution The minimum resolution of the layer.
  * @observable
  * @api stable
@@ -370,13 +345,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.setMinResolution = function(minResolution) {
   this.set(ol.layer.LayerProperty.MIN_RESOLUTION, minResolution);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setMinResolution',
-    ol.layer.Base.prototype.setMinResolution);
 
 
 /**
+ * Set the opacity of the layer, allowed values range from 0 to 1.
  * @param {number} opacity The opacity of the layer.
  * @observable
  * @api stable
@@ -384,10 +356,6 @@ goog.exportProperty(
 ol.layer.Base.prototype.setOpacity = function(opacity) {
   this.set(ol.layer.LayerProperty.OPACITY, opacity);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setOpacity',
-    ol.layer.Base.prototype.setOpacity);
 
 
 /**
@@ -403,13 +371,10 @@ goog.exportProperty(
 ol.layer.Base.prototype.setSaturation = function(saturation) {
   this.set(ol.layer.LayerProperty.SATURATION, saturation);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setSaturation',
-    ol.layer.Base.prototype.setSaturation);
 
 
 /**
+ * Set the visibility of the layer (`true` or `false`).
  * @param {boolean} visible The visibility of the layer.
  * @observable
  * @api stable
@@ -417,7 +382,15 @@ goog.exportProperty(
 ol.layer.Base.prototype.setVisible = function(visible) {
   this.set(ol.layer.LayerProperty.VISIBLE, visible);
 };
-goog.exportProperty(
-    ol.layer.Base.prototype,
-    'setVisible',
-    ol.layer.Base.prototype.setVisible);
+
+
+/**
+ * Set Z-index of the layer, which is used to order layers before rendering.
+ * The default Z-index is 0.
+ * @param {number} zindex The z-index of the layer.
+ * @observable
+ * @api
+ */
+ol.layer.Base.prototype.setZIndex = function(zindex) {
+  this.set(ol.layer.LayerProperty.Z_INDEX, zindex);
+};

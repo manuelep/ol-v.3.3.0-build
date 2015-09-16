@@ -48,7 +48,8 @@ ol.format.WMSCapabilities.prototype.read;
  * @return {Object} WMS Capability object.
  */
 ol.format.WMSCapabilities.prototype.readFromDocument = function(doc) {
-  goog.asserts.assert(doc.nodeType == goog.dom.NodeType.DOCUMENT);
+  goog.asserts.assert(doc.nodeType == goog.dom.NodeType.DOCUMENT,
+      'doc.nodeType should be DOCUMENT');
   for (var n = doc.firstChild; !goog.isNull(n); n = n.nextSibling) {
     if (n.nodeType == goog.dom.NodeType.ELEMENT) {
       return this.readFromNode(n);
@@ -63,11 +64,13 @@ ol.format.WMSCapabilities.prototype.readFromDocument = function(doc) {
  * @return {Object} WMS Capability object.
  */
 ol.format.WMSCapabilities.prototype.readFromNode = function(node) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
   goog.asserts.assert(node.localName == 'WMS_Capabilities' ||
-      node.localName == 'WMT_MS_Capabilities');
+      node.localName == 'WMT_MS_Capabilities',
+      'localName should be WMS_Capabilities or WMT_MS_Capabilities');
   this.version = goog.string.trim(node.getAttribute('version'));
-  goog.asserts.assertString(this.version);
+  goog.asserts.assertString(this.version, 'this.version should be a string');
   var wmsCapabilityObject = ol.xml.pushParseAndPop({
     'version': this.version
   }, ol.format.WMSCapabilities.PARSERS_, node, []);
@@ -82,8 +85,10 @@ ol.format.WMSCapabilities.prototype.readFromNode = function(node) {
  * @return {Object|undefined} Attribution object.
  */
 ol.format.WMSCapabilities.readAttribution_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Attribution');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Attribution',
+      'localName should be Attribution');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.ATTRIBUTION_PARSERS_, node, objectStack);
 };
@@ -96,8 +101,10 @@ ol.format.WMSCapabilities.readAttribution_ = function(node, objectStack) {
  * @return {Object} Bounding box object.
  */
 ol.format.WMSCapabilities.readBoundingBox_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'BoundingBox');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'BoundingBox',
+      'localName should be BoundingBox');
 
   var extent = [
     ol.format.XSD.readDecimalString(node.getAttribute('minx')),
@@ -127,8 +134,10 @@ ol.format.WMSCapabilities.readBoundingBox_ = function(node, objectStack) {
  */
 ol.format.WMSCapabilities.readEXGeographicBoundingBox_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'EX_GeographicBoundingBox');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'EX_GeographicBoundingBox',
+      'localName should be EX_GeographicBoundingBox');
   var geographicBoundingBox = ol.xml.pushParseAndPop(
       {},
       ol.format.WMSCapabilities.EX_GEOGRAPHIC_BOUNDING_BOX_PARSERS_,
@@ -148,10 +157,10 @@ ol.format.WMSCapabilities.readEXGeographicBoundingBox_ =
       !goog.isDef(eastBoundLongitude) || !goog.isDef(northBoundLatitude)) {
     return undefined;
   }
-  return [
+  return /** @type {ol.Extent} */ ([
     westBoundLongitude, southBoundLatitude,
     eastBoundLongitude, northBoundLatitude
-  ];
+  ]);
 };
 
 
@@ -162,8 +171,10 @@ ol.format.WMSCapabilities.readEXGeographicBoundingBox_ =
  * @return {Object|undefined} Capability object.
  */
 ol.format.WMSCapabilities.readCapability_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Capability');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Capability',
+      'localName should be Capability');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.CAPABILITY_PARSERS_, node, objectStack);
 };
@@ -176,8 +187,10 @@ ol.format.WMSCapabilities.readCapability_ = function(node, objectStack) {
  * @return {Object|undefined} Service object.
  */
 ol.format.WMSCapabilities.readService_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Service');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Service',
+      'localName should be Service');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.SERVICE_PARSERS_, node, objectStack);
 };
@@ -191,8 +204,10 @@ ol.format.WMSCapabilities.readService_ = function(node, objectStack) {
  */
 ol.format.WMSCapabilities.readContactInformation_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'ContactInformation');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType shpuld be ELEMENT');
+  goog.asserts.assert(node.localName == 'ContactInformation',
+      'localName should be ContactInformation');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.CONTACT_INFORMATION_PARSERS_,
       node, objectStack);
@@ -207,8 +222,10 @@ ol.format.WMSCapabilities.readContactInformation_ =
  */
 ol.format.WMSCapabilities.readContactPersonPrimary_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'ContactPersonPrimary');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'ContactPersonPrimary',
+      'localName should be ContactPersonPrimary');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.CONTACT_PERSON_PARSERS_,
       node, objectStack);
@@ -223,8 +240,10 @@ ol.format.WMSCapabilities.readContactPersonPrimary_ =
  */
 ol.format.WMSCapabilities.readContactAddress_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'ContactAddress');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'ContactAddress',
+      'localName should be ContactAddress');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.CONTACT_ADDRESS_PARSERS_,
       node, objectStack);
@@ -238,8 +257,10 @@ ol.format.WMSCapabilities.readContactAddress_ =
  * @return {Array.<string>|undefined} Format array.
  */
 ol.format.WMSCapabilities.readException_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Exception');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Exception',
+      'localName should be Exception');
   return ol.xml.pushParseAndPop(
       [], ol.format.WMSCapabilities.EXCEPTION_PARSERS_, node, objectStack);
 };
@@ -252,8 +273,9 @@ ol.format.WMSCapabilities.readException_ = function(node, objectStack) {
  * @return {Object|undefined} Layer object.
  */
 ol.format.WMSCapabilities.readCapabilityLayer_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Layer');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Layer', 'localName should be Layer');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.LAYER_PARSERS_, node, objectStack);
 };
@@ -266,8 +288,9 @@ ol.format.WMSCapabilities.readCapabilityLayer_ = function(node, objectStack) {
  * @return {Object|undefined} Layer object.
  */
 ol.format.WMSCapabilities.readLayer_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Layer');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Layer', 'localName should be Layer');
   var parentLayerObject = /**  @type {Object.<string,*>} */
       (objectStack[objectStack.length - 1]);
 
@@ -350,8 +373,10 @@ ol.format.WMSCapabilities.readLayer_ = function(node, objectStack) {
  * @return {Object} Dimension object.
  */
 ol.format.WMSCapabilities.readDimension_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Dimension');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Dimension',
+      'localName should be Dimension');
   var dimensionObject = {
     'name': node.getAttribute('name'),
     'units': node.getAttribute('units'),
@@ -376,7 +401,8 @@ ol.format.WMSCapabilities.readDimension_ = function(node, objectStack) {
  */
 ol.format.WMSCapabilities.readFormatOnlineresource_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.FORMAT_ONLINERESOURCE_PARSERS_,
       node, objectStack);
@@ -390,8 +416,10 @@ ol.format.WMSCapabilities.readFormatOnlineresource_ =
  * @return {Object|undefined} Request object.
  */
 ol.format.WMSCapabilities.readRequest_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Request');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Request',
+      'localName should be Request');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.REQUEST_PARSERS_, node, objectStack);
 };
@@ -404,8 +432,10 @@ ol.format.WMSCapabilities.readRequest_ = function(node, objectStack) {
  * @return {Object|undefined} DCP type object.
  */
 ol.format.WMSCapabilities.readDCPType_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'DCPType');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'DCPType',
+      'localName should be DCPType');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.DCPTYPE_PARSERS_, node, objectStack);
 };
@@ -418,8 +448,9 @@ ol.format.WMSCapabilities.readDCPType_ = function(node, objectStack) {
  * @return {Object|undefined} HTTP object.
  */
 ol.format.WMSCapabilities.readHTTP_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'HTTP');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'HTTP', 'localName should be HTTP');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.HTTP_PARSERS_, node, objectStack);
 };
@@ -432,7 +463,8 @@ ol.format.WMSCapabilities.readHTTP_ = function(node, objectStack) {
  * @return {Object|undefined} Operation type object.
  */
 ol.format.WMSCapabilities.readOperationType_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.OPERATIONTYPE_PARSERS_, node, objectStack);
 };
@@ -446,7 +478,8 @@ ol.format.WMSCapabilities.readOperationType_ = function(node, objectStack) {
  */
 ol.format.WMSCapabilities.readSizedFormatOnlineresource_ =
     function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
   var formatOnlineresource =
       ol.format.WMSCapabilities.readFormatOnlineresource_(node, objectStack);
   if (goog.isDef(formatOnlineresource)) {
@@ -468,8 +501,10 @@ ol.format.WMSCapabilities.readSizedFormatOnlineresource_ =
  * @return {Object|undefined} Authority URL object.
  */
 ol.format.WMSCapabilities.readAuthorityURL_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'AuthorityURL');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'AuthorityURL',
+      'localName should be AuthorityURL');
   var authorityObject =
       ol.format.WMSCapabilities.readFormatOnlineresource_(node, objectStack);
   if (goog.isDef(authorityObject)) {
@@ -487,8 +522,10 @@ ol.format.WMSCapabilities.readAuthorityURL_ = function(node, objectStack) {
  * @return {Object|undefined} Metadata URL object.
  */
 ol.format.WMSCapabilities.readMetadataURL_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'MetadataURL');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'MetadataURL',
+      'localName should be MetadataURL');
   var metadataObject =
       ol.format.WMSCapabilities.readFormatOnlineresource_(node, objectStack);
   if (goog.isDef(metadataObject)) {
@@ -506,8 +543,9 @@ ol.format.WMSCapabilities.readMetadataURL_ = function(node, objectStack) {
  * @return {Object|undefined} Style object.
  */
 ol.format.WMSCapabilities.readStyle_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'Style');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'Style', 'localName should be Style');
   return ol.xml.pushParseAndPop(
       {}, ol.format.WMSCapabilities.STYLE_PARSERS_, node, objectStack);
 };
@@ -520,8 +558,10 @@ ol.format.WMSCapabilities.readStyle_ = function(node, objectStack) {
  * @return {Array.<string>|undefined} Keyword list.
  */
 ol.format.WMSCapabilities.readKeywordList_ = function(node, objectStack) {
-  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT);
-  goog.asserts.assert(node.localName == 'KeywordList');
+  goog.asserts.assert(node.nodeType == goog.dom.NodeType.ELEMENT,
+      'node.nodeType should be ELEMENT');
+  goog.asserts.assert(node.localName == 'KeywordList',
+      'localName should be KeywordList');
   return ol.xml.pushParseAndPop(
       [], ol.format.WMSCapabilities.KEYWORDLIST_PARSERS_, node, objectStack);
 };
@@ -543,7 +583,7 @@ ol.format.WMSCapabilities.NAMESPACE_URIS_ = [
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Service': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readService_),
@@ -557,7 +597,7 @@ ol.format.WMSCapabilities.PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.CAPABILITY_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.CAPABILITY_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Request': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readRequest_),
@@ -573,7 +613,7 @@ ol.format.WMSCapabilities.CAPABILITY_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.SERVICE_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.SERVICE_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Name': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'Title': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
@@ -601,7 +641,7 @@ ol.format.WMSCapabilities.SERVICE_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.CONTACT_INFORMATION_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.CONTACT_INFORMATION_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'ContactPersonPrimary': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readContactPersonPrimary_),
@@ -623,7 +663,7 @@ ol.format.WMSCapabilities.CONTACT_INFORMATION_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.CONTACT_PERSON_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.CONTACT_PERSON_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'ContactPerson': ol.xml.makeObjectPropertySetter(
           ol.format.XSD.readString),
@@ -637,7 +677,7 @@ ol.format.WMSCapabilities.CONTACT_PERSON_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.CONTACT_ADDRESS_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.CONTACT_ADDRESS_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'AddressType': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'Address': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
@@ -654,7 +694,7 @@ ol.format.WMSCapabilities.CONTACT_ADDRESS_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.EXCEPTION_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.EXCEPTION_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Format': ol.xml.makeArrayPusher(ol.format.XSD.readString)
     });
@@ -665,7 +705,7 @@ ol.format.WMSCapabilities.EXCEPTION_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.LAYER_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.LAYER_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Name': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'Title': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
@@ -706,7 +746,7 @@ ol.format.WMSCapabilities.LAYER_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.ATTRIBUTION_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.ATTRIBUTION_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Title': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'OnlineResource': ol.xml.makeObjectPropertySetter(
@@ -722,7 +762,7 @@ ol.format.WMSCapabilities.ATTRIBUTION_PARSERS_ = ol.xml.makeParsersNS(
  * @private
  */
 ol.format.WMSCapabilities.EX_GEOGRAPHIC_BOUNDING_BOX_PARSERS_ =
-    ol.xml.makeParsersNS(ol.format.WMSCapabilities.NAMESPACE_URIS_, {
+    ol.xml.makeStructureNS(ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'westBoundLongitude': ol.xml.makeObjectPropertySetter(
           ol.format.XSD.readDecimal),
       'eastBoundLongitude': ol.xml.makeObjectPropertySetter(
@@ -739,7 +779,7 @@ ol.format.WMSCapabilities.EX_GEOGRAPHIC_BOUNDING_BOX_PARSERS_ =
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.REQUEST_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.REQUEST_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'GetCapabilities': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readOperationType_),
@@ -755,7 +795,7 @@ ol.format.WMSCapabilities.REQUEST_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.OPERATIONTYPE_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.OPERATIONTYPE_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Format': ol.xml.makeObjectPropertyPusher(ol.format.XSD.readString),
       'DCPType': ol.xml.makeObjectPropertyPusher(
@@ -768,7 +808,7 @@ ol.format.WMSCapabilities.OPERATIONTYPE_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.DCPTYPE_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.DCPTYPE_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'HTTP': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readHTTP_)
@@ -780,7 +820,7 @@ ol.format.WMSCapabilities.DCPTYPE_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.HTTP_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.HTTP_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Get': ol.xml.makeObjectPropertySetter(
           ol.format.WMSCapabilities.readFormatOnlineresource_),
@@ -794,7 +834,7 @@ ol.format.WMSCapabilities.HTTP_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.STYLE_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.STYLE_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Name': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'Title': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
@@ -813,8 +853,8 @@ ol.format.WMSCapabilities.STYLE_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.FORMAT_ONLINERESOURCE_PARSERS_ = ol.xml.makeParsersNS(
-    ol.format.WMSCapabilities.NAMESPACE_URIS_, {
+ol.format.WMSCapabilities.FORMAT_ONLINERESOURCE_PARSERS_ =
+    ol.xml.makeStructureNS(ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Format': ol.xml.makeObjectPropertySetter(ol.format.XSD.readString),
       'OnlineResource': ol.xml.makeObjectPropertySetter(
           ol.format.XLink.readHref)
@@ -826,7 +866,7 @@ ol.format.WMSCapabilities.FORMAT_ONLINERESOURCE_PARSERS_ = ol.xml.makeParsersNS(
  * @type {Object.<string, Object.<string, ol.xml.Parser>>}
  * @private
  */
-ol.format.WMSCapabilities.KEYWORDLIST_PARSERS_ = ol.xml.makeParsersNS(
+ol.format.WMSCapabilities.KEYWORDLIST_PARSERS_ = ol.xml.makeStructureNS(
     ol.format.WMSCapabilities.NAMESPACE_URIS_, {
       'Keyword': ol.xml.makeArrayPusher(ol.format.XSD.readString)
     });

@@ -1,7 +1,6 @@
 goog.provide('ol.source.Source');
 goog.provide('ol.source.State');
 
-goog.require('goog.events.EventType');
 goog.require('ol.Attribution');
 goog.require('ol.Object');
 goog.require('ol.proj');
@@ -24,7 +23,8 @@ ol.source.State = {
  * @typedef {{attributions: (Array.<ol.Attribution>|undefined),
  *            logo: (string|olx.LogoOptions|undefined),
  *            projection: ol.proj.ProjectionLike,
- *            state: (ol.source.State|undefined)}}
+ *            state: (ol.source.State|undefined),
+ *            wrapX: (boolean|undefined)}}
  */
 ol.source.SourceOptions;
 
@@ -36,9 +36,10 @@ ol.source.SourceOptions;
  * instantiated in apps.
  * Base class for {@link ol.layer.Layer} sources.
  *
+ * A generic `change` event is triggered when the state of the source changes.
+ *
  * @constructor
  * @extends {ol.Object}
- * @fires change Triggered when the state of the source changes.
  * @param {ol.source.SourceOptions} options Source options.
  * @api stable
  */
@@ -72,6 +73,12 @@ ol.source.Source = function(options) {
   this.state_ = goog.isDef(options.state) ?
       options.state : ol.source.State.READY;
 
+  /**
+   * @private
+   * @type {boolean}
+   */
+  this.wrapX_ = goog.isDef(options.wrapX) ? options.wrapX : false;
+
 };
 goog.inherits(ol.source.Source, ol.Object);
 
@@ -90,6 +97,7 @@ ol.source.Source.prototype.forEachFeatureAtCoordinate =
 
 
 /**
+ * Get the attributions of the source.
  * @return {Array.<ol.Attribution>} Attributions.
  * @api stable
  */
@@ -99,6 +107,7 @@ ol.source.Source.prototype.getAttributions = function() {
 
 
 /**
+ * Get the logo of the source.
  * @return {string|olx.LogoOptions|undefined} Logo.
  * @api stable
  */
@@ -108,6 +117,7 @@ ol.source.Source.prototype.getLogo = function() {
 
 
 /**
+ * Get the projection of the source.
  * @return {ol.proj.Projection} Projection.
  * @api
  */
@@ -123,6 +133,7 @@ ol.source.Source.prototype.getResolutions = goog.abstractMethod;
 
 
 /**
+ * Get the state of the source, see {@link ol.source.State} for possible states.
  * @return {ol.source.State} State.
  * @api
  */
@@ -132,14 +143,26 @@ ol.source.Source.prototype.getState = function() {
 
 
 /**
- * @param {Array.<ol.Attribution>} attributions Attributions.
+ * @return {boolean|undefined} Wrap X.
  */
-ol.source.Source.prototype.setAttributions = function(attributions) {
-  this.attributions_ = attributions;
+ol.source.Source.prototype.getWrapX = function() {
+  return this.wrapX_;
 };
 
 
 /**
+ * Set the attributions of the source.
+ * @param {Array.<ol.Attribution>} attributions Attributions.
+ * @api
+ */
+ol.source.Source.prototype.setAttributions = function(attributions) {
+  this.attributions_ = attributions;
+  this.changed();
+};
+
+
+/**
+ * Set the logo of the source.
  * @param {string|olx.LogoOptions|undefined} logo Logo.
  */
 ol.source.Source.prototype.setLogo = function(logo) {
@@ -148,6 +171,7 @@ ol.source.Source.prototype.setLogo = function(logo) {
 
 
 /**
+ * Set the state of the source.
  * @param {ol.source.State} state State.
  * @protected
  */
@@ -158,7 +182,8 @@ ol.source.Source.prototype.setState = function(state) {
 
 
 /**
- * @param {ol.proj.Projection} projection Projetion.
+ * Set the projection of the source.
+ * @param {ol.proj.Projection} projection Projection.
  */
 ol.source.Source.prototype.setProjection = function(projection) {
   this.projection_ = projection;

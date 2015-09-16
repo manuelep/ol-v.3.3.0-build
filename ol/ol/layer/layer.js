@@ -6,6 +6,7 @@ goog.require('goog.object');
 goog.require('ol.Object');
 goog.require('ol.layer.Base');
 goog.require('ol.layer.LayerProperty');
+goog.require('ol.render.EventType');
 goog.require('ol.source.State');
 
 
@@ -18,10 +19,11 @@ goog.require('ol.source.State');
  * Layers group together those properties that pertain to how the data is to be
  * displayed, irrespective of the source of that data.
  *
+ * A generic `change` event is fired when the state of the source changes.
+ *
  * @constructor
  * @extends {ol.layer.Base}
  * @fires ol.render.Event
- * @fires change Triggered when the state of the source changes.
  * @param {olx.layer.LayerOptions} options Layer options.
  * @api stable
  */
@@ -36,7 +38,23 @@ ol.layer.Layer = function(options) {
    * @private
    * @type {goog.events.Key}
    */
+  this.mapPrecomposeKey_ = null;
+
+  /**
+   * @private
+   * @type {goog.events.Key}
+   */
+  this.mapRenderKey_ = null;
+
+  /**
+   * @private
+   * @type {goog.events.Key}
+   */
   this.sourceChangeKey_ = null;
+
+  if (goog.isDef(options.map)) {
+    this.setMap(options.map);
+  }
 
   goog.events.listen(this,
       ol.Object.getChangeEventType(ol.layer.LayerProperty.SOURCE),
@@ -93,10 +111,6 @@ ol.layer.Layer.prototype.getSource = function() {
   return goog.isDef(source) ?
       /** @type {ol.source.Source} */ (source) : null;
 };
-goog.exportProperty(
-    ol.layer.Layer.prototype,
-    'getSource',
-    ol.layer.Layer.prototype.getSource);
 
 
 /**
@@ -134,6 +148,42 @@ ol.layer.Layer.prototype.handleSourcePropertyChange_ = function() {
 
 
 /**
+ * Sets the layer to be rendered on a map. The map will not manage this layer in
+ * its layers collection, layer filters in {@link ol.Map#forEachLayerAtPixel}
+ * will not filter the layer, and it will be rendered on top. This is useful for
+ * temporary layers. To remove an unmanaged layer from the map, use
+ * `#setMap(null)`.
+ *
+ * To add the layer to a map and have it managed by the map, use
+ * {@link ol.Map#addLayer} instead.
+ * @param {ol.Map} map Map.
+ * @api
+ */
+ol.layer.Layer.prototype.setMap = function(map) {
+  goog.events.unlistenByKey(this.mapPrecomposeKey_);
+  this.mapPrecomposeKey_ = null;
+  if (goog.isNull(map)) {
+    this.changed();
+  }
+  goog.events.unlistenByKey(this.mapRenderKey_);
+  this.mapRenderKey_ = null;
+  if (!goog.isNull(map)) {
+    this.mapPrecomposeKey_ = goog.events.listen(
+        map, ol.render.EventType.PRECOMPOSE, function(evt) {
+          var layerState = this.getLayerState();
+          layerState.managed = false;
+          layerState.zIndex = Infinity;
+          evt.frameState.layerStatesArray.push(layerState);
+          evt.frameState.layerStates[goog.getUid(this)] = layerState;
+        }, false, this);
+    this.mapRenderKey_ = goog.events.listen(
+        this, goog.events.EventType.CHANGE, map.render, false, map);
+    this.changed();
+  }
+};
+
+
+/**
  * Set the layer source.
  * @param {ol.source.Source} source The layer source.
  * @observable
@@ -142,7 +192,3 @@ ol.layer.Layer.prototype.handleSourcePropertyChange_ = function() {
 ol.layer.Layer.prototype.setSource = function(source) {
   this.set(ol.layer.LayerProperty.SOURCE, source);
 };
-goog.exportProperty(
-    ol.layer.Layer.prototype,
-    'setSource',
-    ol.layer.Layer.prototype.setSource);

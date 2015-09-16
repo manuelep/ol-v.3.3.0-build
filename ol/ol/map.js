@@ -13,6 +13,7 @@ goog.require('goog.debug.Console');
 goog.require('goog.dom');
 goog.require('goog.dom.TagName');
 goog.require('goog.dom.ViewportSizeMonitor');
+goog.require('goog.dom.classlist');
 goog.require('goog.events');
 goog.require('goog.events.BrowserEvent');
 goog.require('goog.events.Event');
@@ -57,6 +58,7 @@ goog.require('ol.renderer.Map');
 goog.require('ol.renderer.canvas.Map');
 goog.require('ol.renderer.dom.Map');
 goog.require('ol.renderer.webgl.Map');
+goog.require('ol.size');
 goog.require('ol.structs.PriorityQueue');
 goog.require('ol.tilecoord');
 goog.require('ol.vec.Mat4');
@@ -99,6 +101,7 @@ ol.OL3_LOGO_URL = 'data:image/png;base64,' +
 
 /**
  * @type {Array.<ol.RendererType>}
+ * @const
  */
 ol.DEFAULT_RENDERER_TYPES = [
   ol.RendererType.CANVAS,
@@ -150,6 +153,15 @@ ol.MapProperty = {
  * a further element within the viewport, either DOM or Canvas, depending on the
  * renderer.
  *
+ * Layers are stored as a `ol.Collection` in layerGroups. A top-level group is
+ * provided by the library. This is what is accessed by `getLayerGroup` and
+ * `setLayerGroup`. Layers entered in the options are added to this group, and
+ * `addLayer` and `removeLayer` change the layer collection in the group.
+ * `getLayers` is a convenience function for `getLayerGroup().getLayers()`.
+ * Note that `ol.layer.Group` is a subclass of `ol.layer.Base`, so layers
+ * entered in the options or added with `addLayer` can be groups, which can
+ * contain further groups, and so on.
+ *
  * @constructor
  * @extends {ol.Object}
  * @param {olx.MapOptions} options Map options.
@@ -189,7 +201,7 @@ ol.Map = function(options) {
 
   /**
    * @private
-   * @type {Object}
+   * @type {Object.<string, string>}
    */
   this.logos_ = optionsInternal.logos;
 
@@ -256,7 +268,7 @@ ol.Map = function(options) {
   // prevent page zoom on IE >= 10 browsers
   this.viewport_.style.msTouchAction = 'none';
   if (ol.has.TOUCH) {
-    this.viewport_.className = 'ol-touch';
+    goog.dom.classlist.add(this.viewport_, 'ol-touch');
   }
 
   /**
@@ -338,13 +350,17 @@ ol.Map = function(options) {
   this.registerDisposable(this.renderer_);
 
   /**
+   * @type {goog.dom.ViewportSizeMonitor}
    * @private
    */
   this.viewportSizeMonitor_ = new goog.dom.ViewportSizeMonitor();
   this.registerDisposable(this.viewportSizeMonitor_);
 
-  goog.events.listen(this.viewportSizeMonitor_, goog.events.EventType.RESIZE,
-      this.updateSize, false, this);
+  /**
+   * @type {goog.events.Key}
+   * @private
+   */
+  this.viewportResizeListenerKey_ = null;
 
   /**
    * @private
@@ -479,7 +495,7 @@ goog.inherits(ol.Map, ol.Object);
  */
 ol.Map.prototype.addControl = function(control) {
   var controls = this.getControls();
-  goog.asserts.assert(goog.isDef(controls));
+  goog.asserts.assert(goog.isDef(controls), 'controls should be defined');
   controls.push(control);
 };
 
@@ -491,13 +507,16 @@ ol.Map.prototype.addControl = function(control) {
  */
 ol.Map.prototype.addInteraction = function(interaction) {
   var interactions = this.getInteractions();
-  goog.asserts.assert(goog.isDef(interactions));
+  goog.asserts.assert(goog.isDef(interactions),
+      'interactions should be defined');
   interactions.push(interaction);
 };
 
 
 /**
- * Adds the given layer to the top of this map.
+ * Adds the given layer to the top of this map. If you want to add a layer
+ * elsewhere in the stack, use `getLayers()` and the methods available on
+ * {@link ol.Collection}.
  * @param {ol.layer.Base} layer Layer.
  * @api stable
  */
@@ -514,7 +533,7 @@ ol.Map.prototype.addLayer = function(layer) {
  */
 ol.Map.prototype.addOverlay = function(overlay) {
   var overlays = this.getOverlays();
-  goog.asserts.assert(goog.isDef(overlays));
+  goog.asserts.assert(goog.isDef(overlays), 'overlays should be defined');
   overlays.push(overlay);
 };
 
@@ -554,19 +573,20 @@ ol.Map.prototype.disposeInternal = function() {
 /**
  * Detect features that intersect a pixel on the viewport, and execute a
  * callback with each intersecting feature. Layers included in the detection can
- * be configured through `opt_layerFilter`. Feature overlays will always be
- * included in the detection.
+ * be configured through `opt_layerFilter`.
  * @param {ol.Pixel} pixel Pixel.
  * @param {function(this: S, ol.Feature, ol.layer.Layer): T} callback Feature
- *     callback. If the detected feature is not on a layer, but on a
- *     {@link ol.FeatureOverlay}, then the 2nd argument to this function will
- *     be `null`. To stop detection, callback functions can return a truthy
- *     value.
+ *     callback. The callback will be called with two arguments. The first
+ *     argument is one {@link ol.Feature feature} at the pixel, the second is
+ *     the {@link ol.layer.Layer layer} of the feature. To stop detection,
+ *     callback functions can return a truthy value.
  * @param {S=} opt_this Value to use as `this` when executing `callback`.
  * @param {(function(this: U, ol.layer.Layer): boolean)=} opt_layerFilter Layer
- *     filter function, only layers which are visible and for which this
- *     function returns `true` will be tested for features. By default, all
- *     visible layers will be tested. Feature overlays will always be tested.
+ *     filter function. The filter function will receive one argument, the
+ *     {@link ol.layer.Layer layer-candidate} and it should return a boolean
+ *     value. Only layers which are visible and for which this function returns
+ *     `true` will be tested for features. By default, all visible layers will
+ *     be tested.
  * @param {U=} opt_this2 Value to use as `this` when executing `layerFilter`.
  * @return {T|undefined} Callback result, i.e. the return value of last
  * callback execution, or the first truthy callback return value.
@@ -592,19 +612,19 @@ ol.Map.prototype.forEachFeatureAtPixel =
 /**
  * Detect layers that have a color value at a pixel on the viewport, and
  * execute a callback with each matching layer. Layers included in the
- * detection can be configured through `opt_layerFilter`. Feature overlays will
- * always be included in the detection.
+ * detection can be configured through `opt_layerFilter`.
  * @param {ol.Pixel} pixel Pixel.
  * @param {function(this: S, ol.layer.Layer): T} callback Layer
- *     callback. If the detected feature is not on a layer, but on a
- *     {@link ol.FeatureOverlay}, then the argument to this function will
- *     be `null`. To stop detection, callback functions can return a truthy
- *     value.
+ *     callback. Will receive one argument, the {@link ol.layer.Layer layer}
+ *     that contains the color pixel. To stop detection, callback functions can
+ *     return a truthy value.
  * @param {S=} opt_this Value to use as `this` when executing `callback`.
  * @param {(function(this: U, ol.layer.Layer): boolean)=} opt_layerFilter Layer
- *     filter function, only layers which are visible and for which this
- *     function returns `true` will be tested for features. By default, all
- *     visible layers will be tested. Feature overlays will always be tested.
+ *     filter function. The filter function will receive one argument, the
+ *     {@link ol.layer.Layer layer-candidate} and it should return a boolean
+ *     value. Only layers which are visible and for which this function returns
+ *     `true` will be tested for features. By default, all visible layers will
+ *     be tested.
  * @param {U=} opt_this2 Value to use as `this` when executing `layerFilter`.
  * @return {T|undefined} Callback result, i.e. the return value of last
  * callback execution, or the first truthy callback return value.
@@ -628,13 +648,14 @@ ol.Map.prototype.forEachLayerAtPixel =
 
 /**
  * Detect if features intersect a pixel on the viewport. Layers included in the
- * detection can be configured through `opt_layerFilter`. Feature overlays will
- * always be included in the detection.
+ * detection can be configured through `opt_layerFilter`.
  * @param {ol.Pixel} pixel Pixel.
  * @param {(function(this: U, ol.layer.Layer): boolean)=} opt_layerFilter Layer
- *     filter function, only layers which are visible and for which this
- *     function returns `true` will be tested for features. By default, all
- *     visible layers will be tested. Feature overlays will always be tested.
+ *     filter function. The filter function will receive one argument, the
+ *     {@link ol.layer.Layer layer-candidate} and it should return a boolean
+ *     value. Only layers which are visible and for which this function returns
+ *     `true` will be tested for features. By default, all visible layers will
+ *     be tested.
  * @param {U=} opt_this Value to use as `this` when executing `layerFilter`.
  * @return {boolean} Is there a feature at the given pixel?
  * @template U
@@ -672,22 +693,8 @@ ol.Map.prototype.getEventCoordinate = function(event) {
  * @api stable
  */
 ol.Map.prototype.getEventPixel = function(event) {
-  // goog.style.getRelativePosition is based on event.targetTouches,
-  // but touchend and touchcancel events have no targetTouches when
-  // the last finger is removed from the screen.
-  // So we ourselves compute the position of touch events.
-  // See https://github.com/google/closure-library/pull/323
-  if (goog.isDef(event.changedTouches)) {
-    var touch = event.changedTouches[0];
-    var viewportPosition = goog.style.getClientPosition(this.viewport_);
-    return [
-      touch.clientX - viewportPosition.x,
-      touch.clientY - viewportPosition.y
-    ];
-  } else {
-    var eventPosition = goog.style.getRelativePosition(event, this.viewport_);
-    return [eventPosition.x, eventPosition.y];
-  }
+  var eventPosition = goog.style.getRelativePosition(event, this.viewport_);
+  return [eventPosition.x, eventPosition.y];
 };
 
 
@@ -704,10 +711,6 @@ ol.Map.prototype.getTarget = function() {
   return /** @type {Element|string|undefined} */ (
       this.get(ol.MapProperty.TARGET));
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'getTarget',
-    ol.Map.prototype.getTarget);
 
 
 /**
@@ -724,8 +727,10 @@ ol.Map.prototype.getTargetElement = function() {
 
 
 /**
- * @param {ol.Pixel} pixel Pixel.
- * @return {ol.Coordinate} Coordinate.
+ * Get the coordinate for a given pixel.  This returns a coordinate in the
+ * map view projection.
+ * @param {ol.Pixel} pixel Pixel position in the map viewport.
+ * @return {ol.Coordinate} The coordinate for the pixel position.
  * @api stable
  */
 ol.Map.prototype.getCoordinateFromPixel = function(pixel) {
@@ -740,6 +745,8 @@ ol.Map.prototype.getCoordinateFromPixel = function(pixel) {
 
 
 /**
+ * Get the map controls. Modifying this collection changes the controls
+ * associated with the map.
  * @return {ol.Collection.<ol.control.Control>} Controls.
  * @api stable
  */
@@ -749,6 +756,8 @@ ol.Map.prototype.getControls = function() {
 
 
 /**
+ * Get the map overlays. Modifying this collection changes the overlays
+ * associated with the map.
  * @return {ol.Collection.<ol.Overlay>} Overlays.
  * @api stable
  */
@@ -758,8 +767,7 @@ ol.Map.prototype.getOverlays = function() {
 
 
 /**
- * Gets the collection of {@link ol.interaction.Interaction} instances
- * associated with this map. Modifying this collection changes the interactions
+ * Get the map interactions. Modifying this collection changes the interactions
  * associated with the map.
  *
  * Interactions are used for e.g. pan, zoom and rotate.
@@ -780,10 +788,6 @@ ol.Map.prototype.getInteractions = function() {
 ol.Map.prototype.getLayerGroup = function() {
   return /** @type {ol.layer.Group} */ (this.get(ol.MapProperty.LAYERGROUP));
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'getLayerGroup',
-    ol.Map.prototype.getLayerGroup);
 
 
 /**
@@ -798,8 +802,10 @@ ol.Map.prototype.getLayers = function() {
 
 
 /**
- * @param {ol.Coordinate} coordinate Coordinate.
- * @return {ol.Pixel} Pixel.
+ * Get the pixel for a coordinate.  This takes a coordinate in the map view
+ * projection and returns the corresponding pixel.
+ * @param {ol.Coordinate} coordinate A map coordinate.
+ * @return {ol.Pixel} A pixel position in the map viewport.
  * @api stable
  */
 ol.Map.prototype.getPixelFromCoordinate = function(coordinate) {
@@ -831,10 +837,6 @@ ol.Map.prototype.getRenderer = function() {
 ol.Map.prototype.getSize = function() {
   return /** @type {ol.Size|undefined} */ (this.get(ol.MapProperty.SIZE));
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'getSize',
-    ol.Map.prototype.getSize);
 
 
 /**
@@ -847,13 +849,10 @@ goog.exportProperty(
 ol.Map.prototype.getView = function() {
   return /** @type {ol.View} */ (this.get(ol.MapProperty.VIEW));
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'getView',
-    ol.Map.prototype.getView);
 
 
 /**
+ * Get the element that serves as the map viewport.
  * @return {Element} Viewport.
  * @api stable
  */
@@ -863,10 +862,11 @@ ol.Map.prototype.getViewport = function() {
 
 
 /**
- * @return {Element} The map's overlay container. Elements added to this
- * container will let mousedown and touchstart events through to the map, so
- * clicks and gestures on an overlay will trigger {@link ol.MapBrowserEvent}
+ * Get the element that serves as the container for overlays.  Elements added to
+ * this container will let mousedown and touchstart events through to the map,
+ * so clicks and gestures on an overlay will trigger {@link ol.MapBrowserEvent}
  * events.
+ * @return {Element} The map's overlay container.
  */
 ol.Map.prototype.getOverlayContainer = function() {
   return this.overlayContainer_;
@@ -874,10 +874,11 @@ ol.Map.prototype.getOverlayContainer = function() {
 
 
 /**
- * @return {Element} The map's overlay container. Elements added to this
- * container won't let mousedown and touchstart events through to the map, so
- * clicks and gestures on an overlay don't trigger any
- * {@link ol.MapBrowserEvent}.
+ * Get the element that serves as a container for overlays that don't allow
+ * event propagation. Elements added to this container won't let mousedown and
+ * touchstart events through to the map, so clicks and gestures on an overlay
+ * don't trigger any {@link ol.MapBrowserEvent}.
+ * @return {Element} The map's overlay container that stops events.
  */
 ol.Map.prototype.getOverlayContainerStopEvent = function() {
   return this.overlayContainerStopEvent_;
@@ -939,7 +940,8 @@ ol.Map.prototype.handleMapBrowserEvent = function(mapBrowserEvent) {
   this.focus_ = mapBrowserEvent.coordinate;
   mapBrowserEvent.frameState = this.frameState_;
   var interactions = this.getInteractions();
-  goog.asserts.assert(goog.isDef(interactions));
+  goog.asserts.assert(goog.isDef(interactions),
+      'interactions should be defined');
   var interactionsArray = interactions.getArray();
   var i;
   if (this.dispatchEvent(mapBrowserEvent) !== false) {
@@ -1024,24 +1026,28 @@ ol.Map.prototype.handleTargetChanged_ = function() {
   // If it's not now an Element we remove the viewport from the DOM.
   // If it's an Element we append the viewport element to it.
 
-  var target = this.getTarget();
-
-  /**
-   * @type {Element}
-   */
-  var targetElement = goog.isDef(target) ?
-      goog.dom.getElement(target) : null;
+  var targetElement = this.getTargetElement();
 
   this.keyHandler_.detach();
 
   if (goog.isNull(targetElement)) {
     goog.dom.removeNode(this.viewport_);
+    if (!goog.isNull(this.viewportResizeListenerKey_)) {
+      goog.events.unlistenByKey(this.viewportResizeListenerKey_);
+      this.viewportResizeListenerKey_ = null;
+    }
   } else {
     goog.dom.appendChild(targetElement, this.viewport_);
 
     var keyboardEventTarget = goog.isNull(this.keyboardEventTarget_) ?
         targetElement : this.keyboardEventTarget_;
     this.keyHandler_.attach(keyboardEventTarget);
+
+    if (goog.isNull(this.viewportResizeListenerKey_)) {
+      this.viewportResizeListenerKey_ = goog.events.listen(
+          this.viewportSizeMonitor_, goog.events.EventType.RESIZE,
+          this.updateSize, false, this);
+    }
   }
 
   this.updateSize();
@@ -1089,7 +1095,8 @@ ol.Map.prototype.handleViewChanged_ = function() {
  * @private
  */
 ol.Map.prototype.handleLayerGroupMemberChanged_ = function(event) {
-  goog.asserts.assertInstanceof(event, goog.events.Event);
+  goog.asserts.assertInstanceof(event, goog.events.Event,
+      'event should be an Event');
   this.render();
 };
 
@@ -1099,7 +1106,8 @@ ol.Map.prototype.handleLayerGroupMemberChanged_ = function(event) {
  * @private
  */
 ol.Map.prototype.handleLayerGroupPropertyChanged_ = function(event) {
-  goog.asserts.assertInstanceof(event, ol.ObjectEvent);
+  goog.asserts.assertInstanceof(event, ol.ObjectEvent,
+      'event should be an ol.ObjectEvent');
   this.render();
 };
 
@@ -1173,8 +1181,7 @@ ol.Map.prototype.renderSync = function() {
 
 
 /**
- * Requests a render frame; rendering will effectively occur at the next browser
- * animation frame.
+ * Request a map rendering (at the next animation frame).
  * @api stable
  */
 ol.Map.prototype.render = function() {
@@ -1193,7 +1200,7 @@ ol.Map.prototype.render = function() {
  */
 ol.Map.prototype.removeControl = function(control) {
   var controls = this.getControls();
-  goog.asserts.assert(goog.isDef(controls));
+  goog.asserts.assert(goog.isDef(controls), 'controls should be defined');
   if (goog.isDef(controls.remove(control))) {
     return control;
   }
@@ -1211,7 +1218,8 @@ ol.Map.prototype.removeControl = function(control) {
 ol.Map.prototype.removeInteraction = function(interaction) {
   var removed;
   var interactions = this.getInteractions();
-  goog.asserts.assert(goog.isDef(interactions));
+  goog.asserts.assert(goog.isDef(interactions),
+      'interactions should be defined');
   if (goog.isDef(interactions.remove(interaction))) {
     removed = interaction;
   }
@@ -1241,7 +1249,7 @@ ol.Map.prototype.removeLayer = function(layer) {
  */
 ol.Map.prototype.removeOverlay = function(overlay) {
   var overlays = this.getOverlays();
-  goog.asserts.assert(goog.isDef(overlays));
+  goog.asserts.assert(goog.isDef(overlays), 'overlays should be defined');
   if (goog.isDef(overlays.remove(overlay))) {
     return overlay;
   }
@@ -1257,25 +1265,11 @@ ol.Map.prototype.renderFrame_ = function(time) {
 
   var i, ii, viewState;
 
-  /**
-   * Check whether a size has non-zero width and height.  Note that this
-   * function is here because the compiler doesn't recognize that size is
-   * defined in the frameState assignment below when the same code is inline in
-   * the condition below.  The compiler inlines this function itself, so the
-   * resulting code is the same.
-   *
-   * @param {ol.Size} size The size to test.
-   * @return {boolean} Has non-zero width and height.
-   */
-  function hasArea(size) {
-    return size[0] > 0 && size[1] > 0;
-  }
-
   var size = this.getSize();
   var view = this.getView();
   /** @type {?olx.FrameState} */
   var frameState = null;
-  if (goog.isDef(size) && hasArea(size) &&
+  if (goog.isDef(size) && ol.size.hasArea(size) &&
       !goog.isNull(view) && view.isDef()) {
     var viewHints = view.getHints();
     var layerStatesArray = this.getLayerGroup().getLayerStatesArray();
@@ -1363,10 +1357,6 @@ ol.Map.prototype.renderFrame_ = function(time) {
 ol.Map.prototype.setLayerGroup = function(layerGroup) {
   this.set(ol.MapProperty.LAYERGROUP, layerGroup);
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'setLayerGroup',
-    ol.Map.prototype.setLayerGroup);
 
 
 /**
@@ -1378,10 +1368,6 @@ goog.exportProperty(
 ol.Map.prototype.setSize = function(size) {
   this.set(ol.MapProperty.SIZE, size);
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'setSize',
-    ol.Map.prototype.setSize);
 
 
 /**
@@ -1394,10 +1380,6 @@ goog.exportProperty(
 ol.Map.prototype.setTarget = function(target) {
   this.set(ol.MapProperty.TARGET, target);
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'setTarget',
-    ol.Map.prototype.setTarget);
 
 
 /**
@@ -1409,10 +1391,6 @@ goog.exportProperty(
 ol.Map.prototype.setView = function(view) {
   this.set(ol.MapProperty.VIEW, view);
 };
-goog.exportProperty(
-    ol.Map.prototype,
-    'setView',
-    ol.Map.prototype.setView);
 
 
 /**
@@ -1431,12 +1409,7 @@ ol.Map.prototype.skipFeature = function(feature) {
  * @api stable
  */
 ol.Map.prototype.updateSize = function() {
-  var target = this.getTarget();
-
-  /**
-   * @type {Element}
-   */
-  var targetElement = goog.isDef(target) ? goog.dom.getElement(target) : null;
+  var targetElement = this.getTargetElement();
 
   if (goog.isNull(targetElement)) {
     this.setSize(undefined);
@@ -1461,7 +1434,7 @@ ol.Map.prototype.unskipFeature = function(feature) {
  * @typedef {{controls: ol.Collection.<ol.control.Control>,
  *            interactions: ol.Collection.<ol.interaction.Interaction>,
  *            keyboardEventTarget: (Element|Document),
- *            logos: Object,
+ *            logos: Object.<string, string>,
  *            overlays: ol.Collection.<ol.Overlay>,
  *            rendererConstructor:
  *                function(new: ol.renderer.Map, Element, ol.Map),
@@ -1502,8 +1475,8 @@ ol.Map.createOptionsInternal = function(options) {
     if (goog.isString(logo)) {
       logos[logo] = '';
     } else if (goog.isObject(logo)) {
-      goog.asserts.assertString(logo.href);
-      goog.asserts.assertString(logo.src);
+      goog.asserts.assertString(logo.href, 'logo.href should be a string');
+      goog.asserts.assertString(logo.src, 'logo.src should be a string');
       logos[logo.src] = logo.href;
     }
   }
@@ -1565,7 +1538,8 @@ ol.Map.createOptionsInternal = function(options) {
     if (goog.isArray(options.controls)) {
       controls = new ol.Collection(options.controls.slice());
     } else {
-      goog.asserts.assertInstanceof(options.controls, ol.Collection);
+      goog.asserts.assertInstanceof(options.controls, ol.Collection,
+          'options.controls should be an ol.Collection');
       controls = options.controls;
     }
   } else {
@@ -1577,7 +1551,8 @@ ol.Map.createOptionsInternal = function(options) {
     if (goog.isArray(options.interactions)) {
       interactions = new ol.Collection(options.interactions.slice());
     } else {
-      goog.asserts.assertInstanceof(options.interactions, ol.Collection);
+      goog.asserts.assertInstanceof(options.interactions, ol.Collection,
+          'options.interactions should be an ol.Collection');
       interactions = options.interactions;
     }
   } else {
@@ -1589,7 +1564,8 @@ ol.Map.createOptionsInternal = function(options) {
     if (goog.isArray(options.overlays)) {
       overlays = new ol.Collection(options.overlays.slice());
     } else {
-      goog.asserts.assertInstanceof(options.overlays, ol.Collection);
+      goog.asserts.assertInstanceof(options.overlays, ol.Collection,
+          'options.overlays should be an ol.Collection');
       overlays = options.overlays;
     }
   } else {
