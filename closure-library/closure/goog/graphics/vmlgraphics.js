@@ -536,7 +536,7 @@ goog.graphics.VmlGraphics.prototype.createDom = function() {
   }
 
   // Outer a DIV with overflow hidden for clipping.
-  // All inner elements are absolutly positioned on-top of this div.
+  // All inner elements are absolutely positioned on-top of this div.
   var pixelWidth = this.width;
   var pixelHeight = this.height;
   var divElement = this.dom_.createDom(goog.dom.TagName.DIV, {
